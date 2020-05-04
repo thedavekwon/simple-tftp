@@ -1,17 +1,18 @@
 //
-// Created by dodo on 4/24/20.
+// Created by Do Hyung Kwon on 4/24/20.
 //
 
 #include "../include/tftp_packet.h"
 
 
-void tftp_packet::generate_req_packet(std::string filename, std::string mode, char rw) {
+void tftp_packet::generate_req_packet(char* filename, std::string mode, char rw) {
     buf.resize(TFTP_MAX_PACKET_SIZE, 0);
+    int filename_size = strlen(filename);
     buf[1] = rw;
-    buf.insert(buf.begin()+2, filename.begin(), filename.end());
-    size_t idx = 2+filename.size()+1;
+    buf.insert(buf.begin()+2, filename, filename+strlen(filename));
+    size_t idx = 2+filename_size+1;
     buf.insert(buf.begin()+idx, mode.begin(), mode.end());
-    len = 2+filename.size()+1+mode.size()+1;
+    len = 2+filename_size+1+mode.size()+1;
 }
 
 
@@ -63,16 +64,27 @@ bool tftp_packet::isERROR() {
 
 void tftp_packet::send_packet(struct sockaddr_in &server_addr, int sockfd) {
     sendto(sockfd, buf.data(), len, 0, reinterpret_cast<sockaddr *>(&server_addr), sizeof(server_addr));
-    // TODO check send
 }
-void tftp_packet::receive_packet(struct sockaddr_in &server_addr, int sockfd) {
+
+bool tftp_packet::receive_packet(struct sockaddr_in &server_addr, int sockfd, bool server) {
     socklen_t serverlen = sizeof(server_addr);
     int receive_status = recvfrom(sockfd, buf.data(), len, 0, reinterpret_cast<sockaddr *>(&server_addr), &serverlen);
-    if (receive_status == 0)
-        perror("Connection Closed");
-    else if (receive_status < 0)
-        perror("Failed to receive packet");
+    if (receive_status == 0) {
+        if (!server) {
+            perror("Connection Closed");
+            exit(EXIT_FAILURE);
+        }
+        return false;
+    }
+    else if (receive_status < 0) {
+        if (!server) {
+            perror("Failed to receive packet");
+            exit(EXIT_FAILURE);
+        }
+        return false;
+    }
     len = receive_status;
+    return true;
 }
 
 tftp_packet::tftp_packet() {
@@ -87,4 +99,29 @@ wchar_t tftp_packet::get_packet_num() {
 void tftp_packet::clear() {
     buf.resize(TFTP_MAX_PACKET_SIZE, 0);
     len = TFTP_MAX_PACKET_SIZE;
+}
+
+std::string tftp_packet::get_filename() const {
+    return find_nth_word(buf, 1, 2);
+}
+
+std::string tftp_packet::get_mode() const {
+    return find_nth_word(buf, 2, 2);
+}
+
+std::string tftp_packet::get_error_message() const {
+    return find_nth_word(buf, 1, 4);
+}
+
+std::string find_nth_word(const std::vector<char> &words, int n, int start_idx) {
+    int cnt = 0;
+    for (int i = start_idx; i < words.size(); i++) {
+        if (words[i] == 0) {
+            if (++cnt == n) {
+                return std::string(words.begin()+start_idx, words.begin()+i);
+            }
+            start_idx = i;
+        }
+    }
+    return std::string();
 }

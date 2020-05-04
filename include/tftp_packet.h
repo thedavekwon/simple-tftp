@@ -1,5 +1,5 @@
 //
-// Created by dodo on 4/24/20.
+// Created by Do Hyung Kwon on 4/24/20.
 //
 
 #ifndef SIMPLE_TFTP_TFTP_PACKET_H
@@ -55,13 +55,18 @@ public:
 
     tftp_packet();
     wchar_t get_packet_num();
+    std::string get_error_message() const;
+    std::string get_filename() const;
+    std::string get_mode() const;
     void clear();
     void send_packet(struct sockaddr_in &server_addr, int sockfd);
-    void receive_packet(struct sockaddr_in &server_addr, int sockfd);
-    void generate_req_packet(std::string filename, std::string mode, char rw);
+    bool receive_packet(struct sockaddr_in &server_addr, int sockfd, bool server);
+    void generate_req_packet(char* filename, std::string mode, char rw);
     void generate_data_packet(char* data, wchar_t packet_num, size_t len);
     void generate_ack_packet(wchar_t packet_num);
     void generate_error_packet(char error_code, std::string error_msg);
 };
+
+std::string find_nth_word(const std::vector<char> &words, int n, int start_idx);
 
 #endif //SIMPLE_TFTP_TFTP_PACKET_H
